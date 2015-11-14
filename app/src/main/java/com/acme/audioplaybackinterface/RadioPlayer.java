@@ -27,7 +27,7 @@ public class RadioPlayer implements Runnable {
     RadioPlayer(File radioFile, int minBufferSize ){
         this.paused = false;
         this.radioFile = radioFile;
-        this.minBufferSize = minBufferSize-10;
+        this.minBufferSize = minBufferSize;
         this.playing = true;
         this.track = new AudioTrack(AudioManager.STREAM_MUSIC, RadioRecord.DEFAULT_SAMPLE_RATE, AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT,
                minBufferSize, AudioTrack.MODE_STREAM);
