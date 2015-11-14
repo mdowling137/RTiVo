@@ -3,84 +3,56 @@ package com.acme.audioplaybackinterface;
 import android.media.AudioFormat;
 import android.media.AudioRecord;
 import android.media.MediaRecorder;
-import android.os.Debug;
-import android.os.Environment;
-
-import java.io.BufferedOutputStream;
-import java.io.DataOutputStream;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.OutputStream;
 
 /**
  * Created by Matthew on 10/22/2015.
  */
-public class RadioRecord implements Runnable {
-    public static int DEFAULT_SAMPLE_RATE = 44100; //should be determined from incoming audio
-    public static int DEFAULT_BUFFER_SIZE = 1024;  //should be determined by incoming audio min buffer size method
+public class RadioREcord implements Runnable {
+    public static int DEFAULT_SAMPLE_RATE = 44100;
+    public static int DEFAULT_BUFFER_SIZE = 1024;
     private boolean recording;
     //private AudioTrack audioTrack;
     private AudioRecord audioRecord;
-    private DataOutputStream dataOutputStream;
-    private File recordedRadio;
     short[] buffer;
-    private int minBufferSize;
+    int minBufferSize;
     int bufferSize;
 
-    RadioRecord(File radioFile) {
-        this.recordedRadio = radioFile;
+    RadioREcord() {
         this.recording = true;
 
-        try {
-
-            OutputStream outputStream = new FileOutputStream(recordedRadio);
-            BufferedOutputStream bufferedOutputStream = new BufferedOutputStream(outputStream);
-            dataOutputStream = new DataOutputStream(bufferedOutputStream);
-
-            minBufferSize = AudioRecord.getMinBufferSize(DEFAULT_SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT);
-
-            buffer = new short[minBufferSize];
-
-            audioRecord = new AudioRecord(MediaRecorder.AudioSource.MIC,  DEFAULT_SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT,
-                    minBufferSize);
 
 
-
-        }catch(Exception e){
-            e.printStackTrace();;
-        }
+        buffer = new short[DEFAULT_BUFFER_SIZE];
     }
 
-    public int getBufferSize(){
-      return minBufferSize;
-    };
     public void run() {
 
-        audioRecord.startRecording();
 
+        audioRecord = new AudioRecord(MediaRecorder.AudioSource.MIC, DEFAULT_SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, DEFAULT_BUFFER_SIZE * 1);
+
+       // audioTrack = new AudioTrack(AudioManager.STREAM_MUSIC,
+        //        DEFAULT_SAMPLE_RATE, AudioFormat.CHANNEL_OUT_MONO,
+       //         AudioFormat.ENCODING_PCM_16BIT, DEFAULT_BUFFER_SIZE * 1,
+       //         AudioTrack.MODE_STREAM);
+
+       // audioTrack.setPlaybackRate(DEFAULT_SAMPLE_RATE);
+
+
+        audioRecord.startRecording();
+        //Log.i(LOG_TAG,"Audio Recording started");
+        //audioTrack.play();
+        //Log.i(LOG_TAG,"Audio Playing started");
         while (recording) {
-            int numberOfShort = audioRecord.read(buffer, 0, minBufferSize);
-            for (int i = 0; i < numberOfShort; i++)
-            {
-                try {
-                    dataOutputStream.writeShort(buffer[i]);
-                }catch(Exception e){
-                        e.printStackTrace();
-                        recording  = false;
-                    }
-            }
+            audioRecord.read(buffer, 0, DEFAULT_BUFFER_SIZE);
+           // audioTrack.write(buffer, 0, buffer.length);
 
         }
         audioRecord.stop();
         audioRecord.release();
         audioRecord = null;
-        try {
-            dataOutputStream.close();
-            recordedRadio.delete();
-        }
-        catch(Exception e){
-            e.printStackTrace();
-        }
+       // audioTrack.stop();
+       // audioTrack.release();
+       // audioTrack = null;
 
     }
 
