@@ -1,82 +1,87 @@
 package com.acme.audioplaybackinterface;
 
-import android.media.AsyncPlayer;
-import android.media.AudioDeviceCallback;
-import android.media.AudioDeviceInfo;
+import java.io.BufferedInputStream;
+import java.io.DataInputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
+
 import android.media.AudioFormat;
 import android.media.AudioManager;
-import android.media.AudioRecord;
 import android.media.AudioTrack;
-import android.media.MediaRecorder;
-import android.util.Log;
-
+import android.os.Environment;
 /**
- * Created by Matthew on 10/22/2015.
+ * Created by Matthew on 11/14/2015.
  */
 public class RadioPlayer implements Runnable {
-    public static int DEFAULT_SAMPLE_RATE = 44100;
-    public static int DEFAULT_BUFFER_SIZE = 1024;
-    private boolean running;
-    private AudioTrack audioTrack;
-    private AudioRecord audioRecord;
-    short[] buffer;
+    File radioFile;
     int minBufferSize;
-    int bufferSize;
+    Boolean playing;
+    AudioTrack track;
+    DataInputStream dataInputStream;
+    short[] audioData;
+    Boolean paused;
 
-    RadioPlayer() {
-        this.running = true;
-
-
-
-        buffer = new short[DEFAULT_BUFFER_SIZE];
+    RadioPlayer(File radioFile, int minBufferSize ){
+        this.paused = false;
+        this.radioFile = radioFile;
+        this.minBufferSize = minBufferSize-10;
+        this.playing = true;
+        this.track = new AudioTrack(AudioManager.STREAM_MUSIC, RadioRecord.DEFAULT_SAMPLE_RATE, AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT,
+               minBufferSize, AudioTrack.MODE_STREAM);
+        try {
+            InputStream inputStream = new FileInputStream(radioFile);
+            BufferedInputStream bufferedInputStream = new BufferedInputStream(inputStream);
+            dataInputStream = new DataInputStream(bufferedInputStream);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        audioData = new short[minBufferSize];
     }
 
-    public void run() {
+    public void run(){
+        try
+        {
 
+            track.play();
+            while(playing){
+                int i = 0;
+                while(i < minBufferSize){
+                    while(this.paused){
+                    }
+                    if(dataInputStream.available() <= 0){
+                        audioData[i]=0;
+                    } else {
+                        audioData[i] = dataInputStream.readShort();
+                    }
+                    i++;
+                }
+                track.write(audioData, 0, minBufferSize);
+            }
+            track.stop();
+            track.release();
 
-         audioRecord = new AudioRecord(MediaRecorder.AudioSource.MIC, DEFAULT_SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, DEFAULT_BUFFER_SIZE * 1);
+            dataInputStream.close();
 
-       audioTrack = new AudioTrack(AudioManager.STREAM_ALARM,
-                DEFAULT_SAMPLE_RATE, AudioFormat.CHANNEL_OUT_MONO,
-                AudioFormat.ENCODING_PCM_16BIT, DEFAULT_BUFFER_SIZE * 1,
-                AudioTrack.MODE_STREAM);
-
-        audioTrack.setPlaybackRate(DEFAULT_SAMPLE_RATE);
-
-
-        audioRecord.startRecording();
-        //Log.i(LOG_TAG,"Audio Recording started");
-        audioTrack.play();
-        //Log.i(LOG_TAG,"Audio Playing started");
-        while (running) {
-            audioRecord.read(buffer, 0, DEFAULT_BUFFER_SIZE);
-            audioTrack.write(buffer, 0, buffer.length);
         }
-        audioRecord.stop();
-        audioRecord.release();
-        audioRecord = null;
-        audioTrack.stop();
-        audioTrack.release();
-        audioTrack = null;
-
+        catch (FileNotFoundException e)
+        {
+            e.printStackTrace();
+        }
+        catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     public void stopPlayback(){
-        this.running = false;
+        this.playing = false;
     }
-
-    /**ToDo:
-     * Fix Audio Routing - force to speakers/hdmi (remove C-MEDIA sink from usbaudio.conf?
-     * Force Input Routing - on device (like Note 4) with internal MIC, force input to USB mic
-     * Detect USB Device - auto launch application when USB device with given PID/VID is attached
-     * Set Up RTP streaming, create service which continues to run in background even after App closed
-     * Setup to record to file for set amount of time
-     * Add pause/rewind/delayed time playback controls
-     * Add visual audio playback indicator (where in buffered audio are we playing)
-     * Check Audio quality / make sure settings for buffer size / sample rate are correct
-     * Push buffer size/ sample rate/ etc to GUI for customizability (maybe fetch from device then populate options)
-     * Setup GIT repo (integrated with Android Studio?)
-     * EXTENDED TIME!!!!
-     */
-
+    public void pausePlayback(){
+        this.paused = true;
+    }
+    public void resumePlayback(){
+        this.paused = false;
+    }
 }
