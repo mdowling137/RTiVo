@@ -1,10 +1,13 @@
 package com.acme.audioplaybackinterface;
 
 import android.media.AudioFormat;
+import android.media.AudioManager;
 import android.media.AudioRecord;
+import android.media.AudioTrack;
 import android.media.MediaRecorder;
 import android.os.Debug;
 import android.os.Environment;
+import android.os.SystemClock;
 
 import java.io.BufferedOutputStream;
 import java.io.DataOutputStream;
@@ -17,34 +20,50 @@ import java.io.OutputStream;
  */
 public class RadioRecord implements Runnable {
     public static int DEFAULT_SAMPLE_RATE = 44100; //should be determined from incoming audio
-    public static int DEFAULT_BUFFER_SIZE = 1024;  //should be determined by incoming audio min buffer size method
+    public static int DEFAULT_BUFFER_SIZE = 2048;  //should be determined by incoming audio min buffer size method
     private boolean recording;
-    //private AudioTrack audioTrack;
+    private boolean playingLive;
+    private AudioTrack loopBack;
     private AudioRecord audioRecord;
     private DataOutputStream dataOutputStream;
     private File recordedRadio;
     short[] buffer;
     private int minBufferSize;
     int bufferSize;
-
-    RadioRecord(File radioFile) {
-        this.recordedRadio = radioFile;
+    private long time;
+    private MediaRecorder mediaRecorder;
+    private String fileName;
+    RadioRecord(String fileName) {
+        //this.recordedRadio = radioFile;
+        this.fileName = fileName;
         this.recording = true;
-
+        this.playingLive = true;
+        this.time = 0;
+        this.mediaRecorder = new MediaRecorder();
+        mediaRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
+        mediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
+        mediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
+        mediaRecorder.setOutputFile(fileName);
+        try {
+            mediaRecorder.prepare();
+        } catch (Exception e){
+            e.printStackTrace();
+        }
         try {
 
-            OutputStream outputStream = new FileOutputStream(recordedRadio);
-            BufferedOutputStream bufferedOutputStream = new BufferedOutputStream(outputStream);
-            dataOutputStream = new DataOutputStream(bufferedOutputStream);
+            //OutputStream outputStream = new FileOutputStream(recordedRadio);
+           // BufferedOutputStream bufferedOutputStream = new BufferedOutputStream(outputStream);
+            //dataOutputStream = new DataOutputStream(bufferedOutputStream);
 
             minBufferSize = AudioRecord.getMinBufferSize(DEFAULT_SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT);
 
-            buffer = new short[minBufferSize];
+            buffer = new short[DEFAULT_BUFFER_SIZE];
 
-            audioRecord = new AudioRecord(MediaRecorder.AudioSource.MIC,  DEFAULT_SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT,
+           audioRecord = new AudioRecord(MediaRecorder.AudioSource.MIC,  DEFAULT_SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT,
                     minBufferSize);
 
-
+            this.loopBack = new AudioTrack(AudioManager.STREAM_MUSIC, RadioRecord.DEFAULT_SAMPLE_RATE, AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT,
+                    minBufferSize, AudioTrack.MODE_STREAM);
 
         }catch(Exception e){
             e.printStackTrace();;
@@ -55,32 +74,39 @@ public class RadioRecord implements Runnable {
       return minBufferSize;
     };
     public void run() {
-
+        this.time = SystemClock.elapsedRealtime();
+        mediaRecorder.start();
         audioRecord.startRecording();
+        loopBack.play();
 
         while (recording) {
-            int numberOfShort = audioRecord.read(buffer, 0, minBufferSize);
-            for (int i = 0; i < numberOfShort; i++)
-            {
-                try {
-                    dataOutputStream.writeShort(buffer[i]);
-                }catch(Exception e){
-                        e.printStackTrace();
-                        recording  = false;
-                    }
+            int numberOfShort = audioRecord.read(buffer, 0, DEFAULT_BUFFER_SIZE);
+            if(playingLive) {
+                loopBack.write(buffer, 0, DEFAULT_BUFFER_SIZE);
             }
+
+
+            //for (int i = 0; i < numberOfShort; i++)
+            //{
+                //try {
+                //    dataOutputStream.writeShort(buffer[i]);
+                //}catch(Exception e){
+               //         e.printStackTrace();
+              //          recording  = false;
+              //      }
+         //   }
 
         }
         audioRecord.stop();
         audioRecord.release();
         audioRecord = null;
-        try {
-            dataOutputStream.close();
-            recordedRadio.delete();
-        }
-        catch(Exception e){
-            e.printStackTrace();
-        }
+        //try {
+            //dataOutputStream.close();
+           // recordedRadio.delete();
+      //  }
+        //catch(Exception e){
+            //e.printStackTrace();
+       // }
 
     }
 
@@ -88,6 +114,17 @@ public class RadioRecord implements Runnable {
         this.recording = false;
     }
 
+    public int stopLiveAudio(){
+
+        loopBack.pause();
+        this.playingLive = false;
+
+        return (int) (SystemClock.elapsedRealtime() - time);
+    }
+    public void startLiveAudio(){
+        this.playingLive = true;
+        loopBack.play();
+    }
 
     /**ToDo:
      * Fix Audio Routing - force to speakers/hdmi (remove C-MEDIA sink from usbaudio.conf?

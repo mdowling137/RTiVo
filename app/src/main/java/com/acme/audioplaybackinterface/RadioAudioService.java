@@ -21,7 +21,7 @@ public class RadioAudioService extends Service {
     public void onCreate() {
         super.onCreate();
         this.radioStarted = false;
-        String filePath = this.getFilesDir().getPath().toString() + "/recordedRadio.pcm";
+        String filePath = this.getFilesDir().getPath().toString() + "/recordedRadio.mp4";
             radioFile = new File(filePath);
             try {
                 Log.d("FILE: ", filePath);
@@ -34,7 +34,7 @@ public class RadioAudioService extends Service {
 
     public int onStartCommand(Intent intent, int flags, int startId) {
 
-        radioRecord = new RadioRecord(radioFile);
+        //radioRecord = new RadioRecord(radioFile);
         Thread recordThread = new Thread(radioRecord);
         recordThread.setPriority(Thread.MAX_PRIORITY);
         recordThread.start();
