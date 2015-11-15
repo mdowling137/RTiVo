@@ -8,13 +8,10 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 
-import android.content.Context;
 import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioTrack;
 import android.os.Environment;
-import android.util.Log;
-
 /**
  * Created by Matthew on 11/14/2015.
  */
@@ -41,8 +38,7 @@ public class RadioPlayer implements Runnable {
         } catch (Exception e) {
             e.printStackTrace();
         }
-        audioData = new short[RadioRecord.DEFAULT_BUFFER_SIZE];
-
+        audioData = new short[minBufferSize];
     }
 
     public void run(){
@@ -52,18 +48,17 @@ public class RadioPlayer implements Runnable {
             track.play();
             while(playing){
                 int i = 0;
-                while(i < RadioRecord.DEFAULT_BUFFER_SIZE){
+                while(i < minBufferSize){
                     while(this.paused){
                     }
                     if(dataInputStream.available() <= 0){
                         audioData[i]=0;
-                        Log.d("AUDIO_DATA:", "0 inserted");
                     } else {
                         audioData[i] = dataInputStream.readShort();
                     }
                     i++;
                 }
-                track.write(audioData, 0,RadioRecord.DEFAULT_BUFFER_SIZE);
+                track.write(audioData, 0, minBufferSize);
             }
             track.stop();
             track.release();
